@@ -61,8 +61,8 @@ def run(n_epochs=3000, n_data=100, device="cpu"):
         optimizer.step()
 
     print("parameters of the ground truth model (that's what we ideally learn)")
-    print("gt trans param: {}".format(gt_robot_model._bodies[6].trans_param))
-    print("gt trans param: {}".format(gt_robot_model._bodies[7].trans_param))
+    print("gt trans param: {}".format(gt_robot_model._bodies[6].trans))
+    print("gt trans param: {}".format(gt_robot_model._bodies[7].trans))
 
     print("parameters of the optimized learnable robot model")
     learnable_robot_model.print_learnable_params()

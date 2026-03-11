@@ -24,7 +24,8 @@ clone this repo and install from source:
 ```
 git clone git@github.com:facebookresearch/differentiable-robot-model.git
 cd differentiable-robot-model
-python setup.py develop
+<!-- python setup.py develop -->
+python install -e .
 ```
 
 ## Examples
