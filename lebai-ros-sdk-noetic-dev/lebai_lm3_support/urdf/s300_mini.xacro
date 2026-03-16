@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="s300">  
+  <xacro:include filename="$(find lebai_resources)/urdf/common_colours.xacro"/>
+  <xacro:include filename="$(find lebai_resources)/urdf/common_constants.xacro"/>
+  <xacro:include filename="$(find lebai_resources)/urdf/common_materials.xacro"/>
+  
+<xacro:property name="visual_car_base" value="package://lebai_lm3_support/meshes/lm3/visual/s300_mini_car_base_link.stl" />
+<xacro:property name="collision_car_base" value="package://lebai_lm3_support/meshes/lm3/collision/s300_mini_car_base_link.stl" />
+
+
+<link name="base_link">
+<visual>
+	<geometry>
+		<mesh filename="${visual_car_base}"/>
+	</geometry>
+	<xacro:material_white name="white"/>
+</visual>
+<collision>
+	<geometry>
+		<mesh filename="${collision_car_base}" />
+	</geometry>
+</collision>
+</link>
+
+</robot>

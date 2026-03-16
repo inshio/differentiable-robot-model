@@ -1,0 +1,13 @@
+controller_list:
+  - name: fake_manipulator_controller
+    type: $(arg execution_type)
+    joints:
+      - lebai_joint_1
+      - lebai_joint_2
+      - lebai_joint_3
+      - lebai_joint_4
+      - lebai_joint_5
+      - lebai_joint_6
+initial:  # Define initial robot poses.
+  - group: manipulator
+    pose: zero
