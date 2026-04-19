@@ -4,7 +4,7 @@
 采集：位置、速度、加速度、力矩
 使用 move_pt 进行连续轨迹运动
 """
-from lebai.pb2 import robot_controller_pb2
+
 import lebai
 from lebai import JointPose
 import numpy as np
@@ -20,55 +20,46 @@ from typing import List, Dict, Any
 class JointSafetyChecker:
     """关节安全限位检查器（根据你之前提供的碰撞信息）"""
     
-    DEG2RAD = np.pi / 180
-    RAD2DEG = 180 / np.pi
+    # DEG2RAD = np.pi / 180
+    # RAD2DEG = 180 / np.pi
     
-    # 碰撞范围（单位：度）
-    COLLISION_ZONES = {
-        'j2': {
-            'name': '关节2',
-            'collision_with_base': {'min': -180, 'max': 20},  # 与车体顶盖板碰撞
-            'safe_range': {'min': -180, 'max': 20}              # 安全范围
-        }
+    # # 碰撞范围（单位：度）
+    # COLLISION_ZONES = {
+    #     'j2': {
+    #         'name': '关节2',
+    #         'collision_with_base': {'min': 20, 'max': 180},  # 与车体顶盖板碰撞
+    #         'safe_range': {'min': -180, 'max': 20}              # 安全范围
+    #     }
 
-    }
+    # }
     
-    # 整体关节运动范围（单位：度）
-    JOINT_RANGES = {
-        'j1': {'min': -180, 'max': 180},
-        'j2': {'min': -180, 'max': 180},
-        'j3': {'min': -180, 'max': 180},
-        'j4': {'min': -180, 'max': 180},
-        'j5': {'min': -180, 'max': 180},
-        'j6': {'min': -180, 'max': 180}
-    }
+    # @classmethod
+    # def check_safety(cls, joints_deg):
+    #     """检查关节角度是否安全"""
+    #     j2, j3 = joints_deg[1], joints_deg[2]
+        
+    #     # 1. 关节2的基本范围 [-180, 20]
+    #     if j2 < -180 or j2 > 20:
+    #         return False, f"关节2角度 {j2:.1f}° 超出安全范围 [-180, 20]"
+        
+    #     # 2. 关节3与关节2的耦合限制
+    #     if j2 > -20:  # 关节2大于-20度时
+    #         if j3 > 40:
+    #             return False, f"关节2={j2:.1f}° > -20° 时，关节3={j3:.1f}° 不能超过40°"
+    #     elif j2 == -20:  # 关节2等于-20度时
+    #         if j3 > 90:
+    #             return False, f"关节2={j2:.1f}° = -20° 时，关节3={j3:.1f}° 不能超过90°"       
+    #     elif j2 == -180:  # 关节2等于-180度时
+    #         if j3 <= -65:
+    #             return False, f"关节2={j2:.1f}° = -180° 时，关节3={j3:.1f}° 不能超过-65°"
+        
+    #     return True, "安全"
     
-    @classmethod
-    def check_safety(cls, joints_deg):
-        """检查关节角度是否安全"""
-        j2, j3 = joints_deg[1], joints_deg[2]
-        
-        # 1. 关节2的基本范围 [-180, 20]
-        if j2 < -180 or j2 > 20:
-            return False, f"关节2角度 {j2:.1f}° 超出安全范围 [-180, 20]"
-        
-        # 2. 关节3与关节2的耦合限制
-        if j2 > -20:  # 关节2大于-20度时
-            if j3 > 40:
-                return False, f"关节2={j2:.1f}° > -20° 时，关节3={j3:.1f}° 不能超过40°"
-        elif j2 == -20:  # 关节2等于-20度时
-            if j3 > 90:
-                return False, f"关节2={j2:.1f}° = -20° 时，关节3={j3:.1f}° 不能超过90°"       
-        elif j2 == -180:  # 关节2等于-180度时
-            if j3 <= -65:
-                return False, f"关节2={j2:.1f}° = -180° 时，关节3={j3:.1f}° 不能超过-65°"
-        
-        return True, "安全"
-    
-    @classmethod
+
+    '''
     def generate_safe_trajectory(cls, n_points=100, duration=10, max_vel=2.0):
         """
-        生成安全的连续轨迹
+        生成安全的连续轨迹，是正弦函数形式，有运动轨迹局限性
         n_points: 请求的点数
         duration: 运动时间（秒）
         max_velocity: 最大允许速度（rad/s）
@@ -77,10 +68,11 @@ class JointSafetyChecker:
         trajectory = []
         dt = duration / n_points
 
-        max_angle_change = 2.0  # rad
+        max_angle_change = 0.5  # rad，相邻角度变化不能太大，避免过快运动
         
         # 计算安全点数
-        safe_n_points = int((max_angle_change * duration) / max_vel)
+        safe_n_points = int((max_vel * duration) / max_angle_change)
+        print(f"根据速度限制，最多允许 {safe_n_points} 个路径点")
         safe_n_points = max(5, min(safe_n_points, n_points))  # 在5到请求点数之间
         
         if safe_n_points < n_points:
@@ -98,7 +90,7 @@ class JointSafetyChecker:
             
             # 根据时间调整，确保不会同时进入危险区域
             j2 = -80 + j2_amp * np.sin(2*np.pi * 0.2 * t)  # 让j2在-180~20之间变化
-            j3 = 30 + 20 * np.sin(2*np.pi * 0.25 * t)       # 让j3在10~50之间变化
+            j3 = 30 + j3_amp * np.sin(2*np.pi * 0.25 * t)       # 让j3在10~50之间变化
             
             joints_deg = [
                 30 * np.sin(2*np.pi * 0.2 * t),      # j1
@@ -135,6 +127,7 @@ class JointSafetyChecker:
         print(f"生成轨迹: {len(trajectory)}/{n_points} 个路径点")
         
         return trajectory
+    '''
 
 # ==================== 主采集类 ====================
 class DataCollector:
@@ -177,7 +170,7 @@ class DataCollector:
         return {
             'timestamp': time.time(),
             'q': robot_data.actual_joint,           # 位置 ✓
-            'qd': robot_data.actual_joint,    # 速度 ✓
+            'qd': robot_data.actual_vel,    # 速度 ✓
             'qdd': robot_data.actual_acc,  # 加速度 ✓
             'tau': robot_data.actual_torque,  # 力矩 ✓
             'tcp': robot_data.actual_pose       # 末端位姿
@@ -225,64 +218,51 @@ class DataCollector:
             except Exception as e:
                 print(f"❌ 点 {i} 运动失败: {e}")
                 return []
-        
-        # # 等待运动开始
-        # time.sleep(0.5)
-        
-        # # 运动过程中持续采集数据
-        # data = []
-        # dt = 0.02  # 50Hz采样
-        # n_samples = int(duration / dt)
-        
-        # for i in range(n_samples):
-        #     # 检查急停
-        #     if self.emergency_stop():
-        #         self.robot.stop()
-        #         break
-            
-          
-            
-        #     time.sleep(dt)
-        
-        # # 等待运动完全结束
-        # time.sleep(0.5)
+
         print(f"采集完成，采集到 {len(data)} 条数据")
         return data
-    
-    '''    
-    def execute_pvt_trajectory(self, positions: List[list], velocities: List[list], duration: float):
-        """
-        执行PVT轨迹（位置-速度-时间）
-        更精确的控制，但需要自己规划速度
-        """
-        self.robot.move_pvt(positions, velocities, duration)
+
+    # def collect_multiple_trajectories(self):
+    #     """采集多种类型的轨迹数据"""
+    #     all_data = []
         
-        # 采集数据（同上）
-        # ...
-    '''
-    def collect_multiple_trajectories(self):
-        """采集多种类型的轨迹数据"""
-        all_data = []
+    #     # 轨迹1：低速运动（主要测重力、静摩擦）
+    #     print("\n📊 轨迹1：低速运动")
+    #     pos1 = JointSafetyChecker.generate_safe_trajectory(20, 20, 2.0)
+    #     data1 = self.execute_pt_trajectory(pos1, 10.0)
+    #     all_data.extend(data1)
         
-        # 轨迹1：低速运动（主要测重力、静摩擦）
-        print("\n📊 轨迹1：低速运动")
-        pos1 = JointSafetyChecker.generate_safe_trajectory(20, 10, 1.0)
-        data1 = self.execute_pt_trajectory(pos1, 10.0)
-        all_data.extend(data1)
+    #     # 轨迹2：中速运动（测科里奥利力）
+    #     print("\n📊 轨迹2：中速运动")
+    #     pos2 = JointSafetyChecker.generate_safe_trajectory(30, 15, 2.5)
+    #     data2 = self.execute_pt_trajectory(pos2, 5.0)
+    #     all_data.extend(data2)
         
-        # 轨迹2：中速运动（测科里奥利力）
-        print("\n📊 轨迹2：中速运动")
-        pos2 = JointSafetyChecker.generate_safe_trajectory(30, 5, 1.5)
-        data2 = self.execute_pt_trajectory(pos2, 5.0)
-        all_data.extend(data2)
+    #     # 轨迹3：高速运动（测离心力、动摩擦）
+    #     print("\n📊 轨迹3：高速运动")
+    #     pos3 = JointSafetyChecker.generate_safe_trajectory(50, 10, 3.0)   
+    #     data3 = self.execute_pt_trajectory(pos3, 3.0)
+    #     all_data.extend(data3)
         
-        # 轨迹3：高速运动（测离心力、动摩擦）
-        print("\n📊 轨迹3：高速运动")
-        pos3 = JointSafetyChecker.generate_safe_trajectory(50, 3, 2.0)   
-        data3 = self.execute_pt_trajectory(pos3, 3.0)
-        all_data.extend(data3)
+    #     return all_data
+
+    # 采集多条不同随机种子生成的轨迹
+    # def collect_multiple_random_trajectories(self):
+    #     all_data = []
+    #     DURATION = 20.0
         
-        return all_data
+    #     # 用不同随机种子生成5条不同的随机轨迹
+    #     for seed in [42, 123, 456, 789, 999]:
+    #         print(f"\n📊 随机轨迹 (seed={seed})")
+    #         pos, total_duration = JointSafetyChecker.generate_random_smooth_trajectory(
+    #             n_points=100,
+    #             duration=DURATION,
+    #             seed=seed
+    #         )
+    #         data = self.execute_pt_trajectory(pos, total_duration)
+    #         all_data.extend(data)
+        
+    #     return all_data
 # ==================== 急停处理 ====================
     def signal_handler(self, sig, frame):
         print("\n⚠️⚠️⚠️ 检测到急停信号！正在安全停止... ⚠️⚠️⚠️")
@@ -340,6 +320,7 @@ class DataCollector:
         np.savez(npz_filename,
                  q=np.array([r['q'] for r in data]),
                  qd=np.array([r['qd'] for r in data]),
+                 qdd=np.array([r['qdd'] for r in data]),
                  tau=np.array([r['tau'] for r in data]))
         
         print(f"✅ 已保存NPZ格式: {npz_filename}")
@@ -428,7 +409,7 @@ if __name__ == "__main__":
     
     try:
         # 采集多种轨迹数据
-        data = collector.collect_multiple_trajectories()
+        data = collector.collect_multiple_random_trajectories()
         
         # 保存数据
         filename = collector.save_data(data)
